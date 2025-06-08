@@ -12,6 +12,10 @@ BOT_NAME = "news_scraper"
 SPIDER_MODULES = ["news_scraper.spiders"]
 NEWSPIDER_MODULE = "news_scraper.spiders"
 
+DOWNLOADER_MIDDLEWARES = {
+    'news_scraper.middlewares.NewsScraperDownloaderMiddleware': 543,
+}
+
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = "news_scraper (+http://www.yourdomain.com)"

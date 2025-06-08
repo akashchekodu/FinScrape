@@ -1,19 +1,20 @@
 import os
-# from dotenv import load_dotenv
-from supabase import create_client, Client
+import psycopg2
+from dotenv import load_dotenv
 from itemadapter import ItemAdapter
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timedelta
 
 # Load environment variables from .env file
-# load_dotenv()
+load_dotenv()
 
-SUPABASE_URL = os.getenv("SUPABASEURL")
-SUPABASE_KEY = os.getenv("SUPABASEKEY")
+# Get the connection string and password from the environment variables
+DB_CONNECTION_STRING = os.getenv("DB_CONNECTION_STRING")
 
 class NewsScraperPipeline:
     def open_spider(self, spider):
-        # Create Supabase client
-        self.supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+        # Create a database connection using the connection string
+        self.connection = psycopg2.connect(DB_CONNECTION_STRING)
+        self.cursor = self.connection.cursor()
         # Cleanup old news when the spider opens
         self.delete_old_news(spider)
 
@@ -21,32 +22,40 @@ class NewsScraperPipeline:
         adapter = ItemAdapter(item)
 
         # Prepare the data to be inserted
-        data = {
-            "title": adapter.get('title'),
-            "link": adapter.get('link'),
-            "date": adapter.get('date'),  # Ensure this matches the format expected in Supabase
-            "description": adapter.get('description'),
-            "source": adapter.get('source')
-        }
+        data = (
+            adapter.get('title'),
+            adapter.get('link'),
+            adapter.get('date'),  # Ensure this matches the format expected in the database
+            adapter.get('description'),
+            adapter.get('source')
+        )
 
-        # Insert the data into Supabase
+        # Insert the data into the PostgreSQL database
         try:
-            response = self.supabase.table('news').insert(data).execute()
-            if response.status_code != 200:
-                spider.logger.error(f"Error inserting data: {response}")
+            self.cursor.execute("""
+                INSERT INTO news (title, link, date, description, source)
+                VALUES (%s, %s, %s, %s, %s)
+            """, data)
+            self.connection.commit()
         except Exception as e:
-            spider.logger.error(f"Error inserting into Supabase: {e}")
+            spider.logger.error(f"Error inserting into PostgreSQL: {e}")
 
         return item
 
     def delete_old_news(self, spider):
-        one_day_ago = datetime.utcnow() - timedelta(days=1)
+        one_day_ago_ist = datetime.utcnow() - timedelta(days=1)
+
         try:
             # Perform the deletion
-            response = self.supabase.table('news').delete().lt('date', one_day_ago).execute()
-            if response.status_code == 200:
-                spider.logger.info("Old news deleted successfully")
-            else:
-                spider.logger.error(f"Error deleting old news: {response.error}")
+            self.cursor.execute("""
+                DELETE FROM news WHERE date < %s OR created_at < %s
+            """, (one_day_ago_ist,one_day_ago_ist))
+            self.connection.commit()
+            spider.logger.info("Old news deleted successfully")
         except Exception as e:
             spider.logger.error(f"An exception occurred while deleting old news: {str(e)}")
+
+    def close_spider(self, spider):
+        # Close the database connection when the spider closes
+        self.cursor.close()
+        self.connection.close()
