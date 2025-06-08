@@ -1,6 +1,7 @@
 # Virtual environment
 env/
 .env
+venv/
 
 # Python cache
 __pycache__/
@@ -13,3 +14,4 @@ project.egg-info/
 # Scrapyd generated files
 .scrapy/
 *.log
+venv/
