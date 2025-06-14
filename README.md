@@ -15,6 +15,7 @@ FinScrape collects data from the following sources:
 - [Business Standard](https://www.business-standard.com/)
 - [MoneyControl](https://www.moneycontrol.com/)
 - [Pulse](https://pulse.zerodha.com/)
+- [Economic Times](https://economictimes.indiatimes.com/)
 
 
 ## Getting Started
